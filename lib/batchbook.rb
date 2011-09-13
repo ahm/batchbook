@@ -11,7 +11,7 @@ require 'active_resource'
 #
 #
 module BatchBook
-  VERSION = '1.0.4'
+  VERSION = '1.0.5'
 
   class Error < StandardError; end
   class << self
@@ -59,8 +59,9 @@ module BatchBook
         attr_accessor :site_format
       end
       base.site_format = '%s'
+      self.format = ActiveResource::Formats::XmlFormat
       super
-    end
+    end    
   end
 
   class Activities < Base
@@ -74,6 +75,7 @@ module BatchBook
   class Affiliation < Base    
     
   end
+  
   
   class Person < Base
     #http://developer.batchblue.com/people.html
@@ -107,7 +109,16 @@ module BatchBook
     # location[country]   Country
     def add_location(params = {})
       params.update(:label => 'home') unless params[:label].present?
-      self.post(:locations, :location => params)
+      
+      location = Location.new(params)
+      location.person = self
+      location.save
+    end
+    
+    class Location < Base   
+      def person=(person)
+        self.prefix_options[:person_id] = person.id
+      end
     end
 
     def supertags
@@ -368,7 +379,13 @@ module BatchBook
   end
 
   class Comment < Base
-
+    def initialize(attributes = {})
+      if(attributes[:comment])
+        attributes[:comment] = {:comment => attributes[:comment]}
+      end
+      super(attributes)
+    end
+    
     def communication
       Communication.find(self.prefix_options[:communication_id])
     end
@@ -416,7 +433,6 @@ module BatchBook
     def todo=(todo)
       self.prefix_options[:todo_id] = todo.id
     end
-    
   end
 
   class List < Base
@@ -445,7 +461,6 @@ module BatchBook
     
   end
 end
-
 __END__
 
 require 'batchbook'
